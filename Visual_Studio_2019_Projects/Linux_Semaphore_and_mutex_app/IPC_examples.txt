@@ -1,0 +1,293 @@
+Consider a situation where we have a file shared between many people.
+
+If one of the people tries editing the file, no other person should be reading or writing at the same time, otherwise changes will not be visible to him/her.
+However if some person is reading the file, then others may read it at the same time.
+Precisely in OS we call this situation as the readers-writers problem
+
+Problem parameters:
+
+One set of data is shared among a number of processes
+Once a writer is ready, it performs its write. Only one writer may write at a time
+If a process is writing, no other process can read it
+If at least one reader is reading, no other process can write
+Readers may not write and only read
+
+
+Producer-Consumer Problem
+
+Problem Statement
+The producer-consumer problem is a set of problems with lots of variants. In this tutorial, we focus on the simplest version:
+The system has one producer thread and one consumer thread.
+The size of the buffer between producer and consumer is exactly one. In other words, the producer will wait for the consumer to consume the product before producing the next one.
+The critical point is the producer and the consumer both need to access the shared resource (buffer) without knowing what the other is doing. We must handle the synchronization properly so that no data provided by the producer is lost (producer generates the next product before consumer accept) or duplicated (producer fails to update before consumer consume obtain next one). To achieve the goal, the desired solution should guarantee:
+The access of data by two threads are mutually exclusive. When one is accessing the data, the other must be blocked.
+The activity of producer and consumer are alternating in a “ping-pong” pattern. In an efficient implementation, the consumer launches immediately after the producer completes, and vice versa
+
+
+
+
+CS 466 - Operating Systems - Spring 2011
+Sleeping Barber
+
+Complete the following simulation of the sleeping barber problem. The given program first creates a barber thread. The barber thread calls callNext to get a customer, waits a random amount of time (to simulate the time it takes to cut hair), and then repeats the process.
+
+After the barber thread is created, the program creates customer threads at random intervals. The customer threads call enter to enter the shop and then wait for the barber to complete the haircut (using a barrier for synchronization).
+
+Your task is to write code for callNext and enter so the barber sleeps when there are no customers waiting and the customers wait if the barber is busy or leave if the shop is full. BarberShop has instance variables waiting and activity to help you keep track of how many customers are waiting and what the barber is doing, as well as condition variables customers and barber used to synchronize the two types of threads. There is also a mutex called mutex you can use to enforce mutually exclusive access to the instance variables. callNext should
+
+check for waiting customers
+if there are none, wait
+if there are waiting customers, signal one
+enter should
+check the state of the barber and the number of waiting customers
+wake (signal) the barber if no one else is waiting and the barber is asleep
+leave the shop if the shop is full (or closed)
+wait if the barber is cutting and there is room left in the shop
+Both methods should update waiting and activity as appropriate.
+You will also need barrier.h and barrier.cpp in order to run the code.
+
+A solution is in solution.cpp.
+
+
+shop.h
+#ifndef __SHOP_H__
+#define __SHOP_H__
+
+/**
+ * A barber shop with a fixed number of chairs.
+ *
+ * @author Jim Glenn
+ * @version 0.1 2/17/2004
+ */
+
+class BarberShop
+{
+ public:
+  /**
+   * Creates a barber shop with the given number of chairs for waiting
+   * customers.
+   */
+
+  BarberShop(int max);
+
+  /**
+   * Called by a customer upon entry to this shop.  If the shop is full then
+   * the customer leaves immediately.  Otherwise the method returns only
+   * when the customer gets in the barber's chair.
+   *
+   * @param id the id of the entering customer (can be used for debugging)
+   * @return true iff the customer is in the barber's chair
+   */
+
+  bool enter(int id);
+
+  /**
+   * Called by the barber when ready to cut hair in this shop.
+   */
+
+  void callNext();
+    
+ private:
+  /**
+   * For initializing condition variables.
+   */
+
+  static const pthread_cond_t DEFAULT_COND;
+
+  /**
+   * For initializing mutexes.
+   */
+
+  static const pthread_mutex_t DEFAULT_MUTEX;
+
+  /**
+   * Used to guarantee mutually exclusive access to this shop's data.
+   */
+
+  pthread_mutex_t mutex;
+
+  /**
+   * Used to synchronize the customers waiting in this shop
+   */
+
+  pthread_cond_t customers;
+
+  /**
+   * Used to synchronize the barber who runs this shop.
+   */
+
+  pthread_cond_t barber;
+
+  /**
+   * Possible states of the barber.
+   */
+
+  enum {HOME, SLEEPING, CUTTING};
+
+  /**
+   * The state of the barber who runs this shop.
+   */
+
+  int activity;
+
+  /**
+   * The number of waiting customers in this shop.
+   */
+
+  int waiting;
+
+  /**
+   * The number of chairs for waiting customers in this shop.
+   */
+
+  int chairs;
+};
+
+#endif
+shop.cpp
+#include <iostream>
+
+#include <pthread.h>
+
+#include "shop.h"
+
+const pthread_cond_t BarberShop::DEFAULT_COND = PTHREAD_COND_INITIALIZER;
+const pthread_mutex_t BarberShop::DEFAULT_MUTEX = PTHREAD_MUTEX_INITIALIZER;
+
+BarberShop::BarberShop(int max)
+  : mutex(DEFAULT_MUTEX),
+    customers(DEFAULT_COND),
+    barber(DEFAULT_COND)
+{
+  activity = HOME;
+  chairs = max;
+
+  waiting = 0;
+}
+
+void BarberShop::callNext()
+{
+  // YOUR CODE HERE
+}
+
+bool BarberShop::enter(int id)
+{
+  bool gotHaircut = false;
+  
+  // YOUR CODE HERE
+
+  return gotHaircut;
+}
+
+sb.cpp
+#include <iostream>
+
+#include <unistd.h>
+
+#include "shop.h"
+#include "barrier.h"
+
+/**
+ * The maximum amount of time between customer arrivals.
+ */
+
+const int CUSTOMER_INTERVAL = 4;
+
+/**
+ * The maximum amount of time to cut hair.
+ */
+
+const int CUTTING_TIME = 6;
+
+/**
+ * The number of chairs in the shop.
+ */
+
+const int CHAIRS = 5;
+
+/**
+ * Arguments to pass to barber and customer threads.
+ */
+
+struct thread_arg_t
+{
+  Barrier *bar;
+  BarberShop *shop;
+  int id;
+};
+
+/**
+ * Entry point for barber thread.
+ *
+ * @param args a pointer to a <CODE>thread_arg_t</CODE> structure
+ */
+
+void *barber(void *args);
+
+/**
+ * Entry point for a customer thread.
+ *
+ * @param args a pointer to a <CODE>thread_arg_t</CODE> structure
+ */
+
+void *customer(void *args);
+
+/**
+ * Sleeping barber demo.
+ */
+
+int main()
+{
+  Barrier bar(2);
+  BarberShop shop(CHAIRS);
+  int customers = 0;
+
+  thread_arg_t args = {&bar, &shop, 0};
+
+  // create a barber thread
+
+  pthread_t b;
+  pthread_create(&b, NULL, barber, &args);
+  pthread_detach(b);
+
+  // create customer threads
+
+  while (true)
+    {
+      sleep(random() % CUSTOMER_INTERVAL);
+
+      thread_arg_t *cArgs = new thread_arg_t(args);
+      cArgs->id = ++customers;
+
+      pthread_t c;
+      pthread_create(&c, NULL, customer, cArgs);
+      pthread_detach(c);
+    }
+}
+
+void *barber(void *args)
+{
+  thread_arg_t *tArgs = reinterpret_cast< thread_arg_t * >(args);
+
+  while (true)
+    {
+      tArgs->shop->callNext();
+
+      sleep(random() % CUTTING_TIME);
+
+      tArgs->bar->cross();
+
+      std::cerr << "done cutting" << std::endl;
+    }
+}
+
+void *customer(void *args)
+{
+  thread_arg_t *tArgs = reinterpret_cast< thread_arg_t * >(args);
+  
+  if (tArgs->shop->enter(tArgs->id))
+    {
+      tArgs->bar->cross();
+      std::cerr << "got haircut" << std::endl;
+    }
+}
