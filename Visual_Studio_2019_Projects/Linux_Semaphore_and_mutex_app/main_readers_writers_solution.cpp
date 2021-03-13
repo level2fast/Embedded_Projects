@@ -1,14 +1,14 @@
-// Reader-Writer problem using monitor
+// Reader-Writer problem using monitors 
+
 #include <iostream> 
 #include <pthread.h> 
 #include <unistd.h> 
-#include <fstream>
 using namespace std;
 
 class monitor {
 	//The monitor is one of the ways to achieve Process synchronization.
 	//The monitor is supported by programming languages to achieve mutual exclusion between processes.
-	//It is the collection of condition variables and procedures combined together in a special kind of module or a package.
+	//It is the collection of condition variablesand procedures combined together in a special kind of module or a package.
 	//The processes running outside the monitor can’t access the internal variable of the monitor but can call procedures of the monitor.
 	//Only one process at a time can execute code inside monitors.
 private:
@@ -73,29 +73,6 @@ public:
 		// So we can read the resource 
 		rcnt++;
 		cout << "reader " << i << " is reading\n";
-		std::ifstream is("example.txt", std::ifstream::binary);
-		if (is) {
-			// get length of file:
-			is.seekg(0, is.end);
-			int length = is.tellg();
-			is.seekg(0, is.beg);
-
-			char* buffer = new char[length];
-
-			std::cout << "Reading " << length << " characters... \n";
-			// read data as a block:
-			is.read(buffer, length);
-
-			if (is)
-				std::cout << "all characters read successfully. \n";
-			else
-				std::cout << "error: only " << is.gcount() << " could be read\n";
-			is.close();
-
-			// ...buffer contains the entire file...
-
-			delete[] buffer;
-		}
 		//unlock the mutex since we are done reading
 		pthread_mutex_unlock(&condlock);
 		//let other readers know they can read
@@ -104,18 +81,19 @@ public:
 
 	void endread(int i)
 	{
+
 		// if there are no readers left then writer enters monitor 
 		pthread_mutex_lock(&condlock);
 
-		//pre-decrement readers count
-		//to signal that writers can
+		//pre-decrement readers count to determine
+		//to signal that to signal that writers can
 		//write if all readers are done reading.
 		if (--rcnt == 0)
 			pthread_cond_signal(&canwrite);
 
 		//all done reading now so release the lock
 		pthread_mutex_unlock(&condlock);
-		cout << "reader " << i << " is done reading\n\n";
+		cout << "reader " << i << " is done reading\n";
 	}
 
 	void beginwrite(int i)
@@ -135,11 +113,6 @@ public:
 		}
 		wcnt = 1;
 		cout << "writer " << i << " is writing\n";
-		ofstream myfile;
-		cout << "Writing this to a file." <<i<<endl;
-		myfile.open("example.txt");
-		myfile << "Writing this to a file.\n" + i;
-		myfile.close();
 		pthread_mutex_unlock(&condlock);
 	}
 
@@ -149,13 +122,13 @@ public:
 		wcnt = 0;
 
 		// if any readers are waiting, threads are unblocked 
-		if (waitr > 0)
+		if (waitr > 0) 
 			//signal to readers that they can read
 			pthread_cond_signal(&canread);
 		else //signal to next writer so they can write
 			pthread_cond_signal(&canwrite);
 		pthread_mutex_unlock(&condlock);
-		cout << "writer " << i << " is done writing\n\n";
+		cout << "writer " << i << " is done writing\n";
 	}
 
 }// global object of monitor class 
@@ -188,31 +161,44 @@ void* writer(void* id)
 		c++;
 	}
 }
-const int THREADS = 5;
+const int rThreads = 5;
+const int wThreads = 5;
 int main()
 {
-	ofstream myfile;
-	myfile.open("example.txt");
-	myfile << "Writing this to a file.\n";
-	myfile.close();
 	//create 5 reader threads and 5 writer threads
-	pthread_t r[THREADS], w[THREADS];
-
+	pthread_t r[rThreads], w[wThreads];
+	
 	//create an ID array that contains ID's of each thread
 	int id[5];
 	//launch reader and writer threads with specified id
-	for (int i = 0; i < THREADS; i++) {
+	for (int i = 0; i < rThreads; i++) {
 		id[i] = i;
-		// creating threads which execute reader & writer functions
+		// creating threads which execute reader function 
 		pthread_create(&r[i], NULL, &reader, &id[i]);
 		pthread_create(&w[i], NULL, &writer, &id[i]);
 	}
 
+	////launch reader and writer threads with specified id
+	//for (int i = 0; i < rThreads; i++) {
+	//	id[i] = i;
+	//	// creating threads which execute reader function 
+	//	pthread_create(&r[i], NULL, &reader, &id[i]);
+
+	//}
+	////launch reader and writer threads with specified id
+	//for (int i = 0; i < wThreads; i++) {
+	//	id[i] = i;
+	//	// creating threads which execute writer function 
+	//	pthread_create(&w[i], NULL, &writer, &id[i]);
+	//}
+
 	//ensure that this thread does not exit before the reader
 	//and writer threads terminate.
-	for (int i = 0; i < THREADS; i++) {
+	for (int i = 0; i < rThreads; i++) {
 		pthread_join(r[i], NULL);
 		pthread_join(w[i], NULL);
 	}
-	return 0;
+	//for (int i = 0; i < wThreads; i++) {
+	//	pthread_join(w[i], NULL);
+	//}
 }
