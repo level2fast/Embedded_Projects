@@ -81,13 +81,11 @@ public:
 
 	void endread(int i)
 	{
-
 		// if there are no readers left then writer enters monitor 
 		pthread_mutex_lock(&condlock);
 
-		//pre-decrement readers count to determine
-		//to signal that to signal that writers can
-		//write if all readers are done reading.
+		//pre-decrement readers count
+		//and check if all readers are done reading
 		if (--rcnt == 0)
 			pthread_cond_signal(&canwrite);
 
@@ -109,24 +107,32 @@ public:
 			//there are writers waiting or reader waiting so
 			//block until its our turn to write
 			pthread_cond_wait(&canwrite, &condlock);
+			//done waiting so decrement number of writers waiting
 			--waitw;
 		}
+		// our turn to write so set writer count to 1
 		wcnt = 1;
 		cout << "writer " << i << " is writing\n";
+		//release lock once write is complete
 		pthread_mutex_unlock(&condlock);
 	}
 
 	void endwrite(int i)
 	{
+		//get lock to update writers count
 		pthread_mutex_lock(&condlock);
+		//update writer count to zero since we
+		//are done writing
 		wcnt = 0;
 
 		// if any readers are waiting, threads are unblocked 
+		// since readers have priority
 		if (waitr > 0) 
 			//signal to readers that they can read
 			pthread_cond_signal(&canread);
 		else //signal to next writer so they can write
 			pthread_cond_signal(&canwrite);
+		//release lock
 		pthread_mutex_unlock(&condlock);
 		cout << "writer " << i << " is done writing\n";
 	}

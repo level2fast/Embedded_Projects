@@ -72,6 +72,11 @@ public:
 		// there are no active or waiting writers
 		// So we can read the resource 
 		rcnt++;
+		//unlock the mutex since we are done reading
+		pthread_mutex_unlock(&condlock);
+		//let other readers know they can read
+		pthread_cond_broadcast(&canread);
+
 		cout << "reader " << i << " is reading\n";
 		std::ifstream is("example.txt", std::ifstream::binary);
 		if (is) {
@@ -96,10 +101,7 @@ public:
 
 			delete[] buffer;
 		}
-		//unlock the mutex since we are done reading
-		pthread_mutex_unlock(&condlock);
-		//let other readers know they can read
-		pthread_cond_broadcast(&canread);
+
 	}
 
 	void endread(int i)
